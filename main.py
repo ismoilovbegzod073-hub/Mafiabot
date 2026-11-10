@@ -2,10 +2,11 @@ import asyncio
 import logging
 import random
 import os
+from http.server import HTTPServer, BaseHTTPRequestHandler
+from threading import Thread
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.filters import Command
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiohttp import web
 
 # --- SOZLAMALAR ---
 BOT_TOKEN = "9291368937:AAHUn5SK_Or3HsV_G3aMQFTWJVzklvbDiW8"
@@ -274,7 +275,7 @@ async def start_playing(callback: types.CallbackQuery):
     if chat_id not in games or games[chat_id]["status"] != "waiting":
         return
 
-    players = games[games_chat_id := chat_id]["players"]
+    players = games[chat_id]["players"]
 
     if len(players) < 4:
         await callback.answer("O'yin boshlash uchun kamida 4 kishi kerak! ⚠️", show_alert=True)
@@ -302,5 +303,31 @@ async def start_playing(callback: types.CallbackQuery):
 
     await callback.message.edit_text(
         f"🚀 **O'yin boshlandi!**\n\n"
-        f"Isht
+        f"Ishtirokchilar soni: {len(players)} ta.\n"
+        f"🌙 **Kecha tushdi...** Hammaga o'z rollari shaxsiy xat orqali yuborildi.",
+        parse_mode="Markdown"
+    )
+
+# --- Render port talabini qondirish uchun oddiy server (fon rejimida) ---
+class SimpleHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running!")
+    def log_message(self, format, *args):
+        pass
+
+def run_server():
+    port = int(os.environ.get("PORT", 10000))
+    server = HTTPServer(("0.0.0.0", port), SimpleHandler)
+    server.serve_forever()
+
+if __name__ == "__main__":
+    # Veb-serverni alohida oqimda (thread) ishga tushiramiz
+    server_thread = Thread(target=run_server, daemon=True)
+    server_thread.start()
+    
+    print("Mafia Baku 2 bot muvaffaqiyatli ishga tushdi...")
+    asyncio.run(dp.start_polling(bot))
+
 
